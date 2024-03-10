@@ -4,6 +4,7 @@ import { FFmpeg } from '@ffmpeg/ffmpeg'
 import { fetchFile, toBlobURL } from '@ffmpeg/util'
 import { useEffect, useRef, useState } from 'react'
 import { Skeleton } from "@/components/ui/skeleton"
+import { CardWithForm } from '@/components/mediaControllers'
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false)
@@ -27,10 +28,13 @@ export default function Home() {
     setIsLoading(false)
   }
 
-  async function transcode() {
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  async function transcode(file: Blob) {
     const ffmpeg = ffmpegRef.current
-    await ffmpeg.writeFile('input.avi', await fetchFile('https://raw.githubusercontent.com/ffmpegwasm/testdata/master/video-15s.avi'))
-    await ffmpeg.exec(['-i', 'input.avi', 'output.mp4'])
+    console.log('transcoding')
+    await ffmpeg.writeFile(`input.${file.type.split('/')[1]}`, await fetchFile(file))
+    console.log('file written')
+    await ffmpeg.exec(['-i', `input.${file.type.split('/')[1]}`,'output.mp4'])
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     const data = (await ffmpeg.readFile('output.mp4')) as any
     if (videoRef.current)
@@ -47,22 +51,22 @@ export default function Home() {
       <h1 className="text-4xl font-bold text-center">Compress WASM</h1>
       {isLoading && <LoadingPidePiper />}
 
-      <div className="w-full flex flex-row items-center justify-center h-screen m-8">
+      <div className="w-full flex flex-row items-center justify-center h-screen m-8 gap-4">
         <section className='flex-auto w-2/3'>
           {/* biome-ignore lint/a11y/useMediaCaption: <explanation> */}
-          {isLoading ? <Skeleton className='w-full h-80 rounded-xl'/> : <video ref={videoRef} controls className='w-full' />}
+          {isLoading ? <Skeleton className='w-full h-80 rounded-xl' /> : <video ref={videoRef} controls className='w-full' />}
         </section>
         <aside className='flex-auto w-1/3'>
-          <p className="text-center">
-            {/* biome-ignore lint/a11y/useButtonType: <explanation> */}
+          {/* <p className="text-center">
             <button
               onClick={transcode}
               className="bg-green-500 hover:bg-green-700 text-white py-3 px-6 rounded"
             >
               Transcode avi to mp4
             </button>
-          </p>
+          </p> */}
           <p ref={messageRef} />
+          <CardWithForm transcode={transcode} ffmpegMessage={messageRef} />
         </aside>
 
       </div>
