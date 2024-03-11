@@ -20,6 +20,11 @@ export default function Home() {
     ffmpeg.on('log', ({ message }) => {
       if (messageRef.current) messageRef.current.innerHTML = message
     })
+
+    ffmpeg.on('progress', ({ progress, time }) => {
+      if (messageRef.current) messageRef.current.innerHTML = `Progress: ${progress} Time: ${time}`
+  });
+  
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
@@ -28,13 +33,13 @@ export default function Home() {
     setIsLoading(false)
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  async function transcode(file: Blob) {
+  async function transcode(file: Blob, outputFormat: string) {
     const ffmpeg = ffmpegRef.current
     console.log('transcoding')
+    console.log(outputFormat)
     await ffmpeg.writeFile(`input.${file.type.split('/')[1]}`, await fetchFile(file))
     console.log('file written')
-    await ffmpeg.exec(['-i', `input.${file.type.split('/')[1]}`,'output.mp4'])
+    await ffmpeg.exec(['-i', `input.${file.type.split('/')[1]}`, `output.${outputFormat}`])
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     const data = (await ffmpeg.readFile('output.mp4')) as any
     if (videoRef.current)
@@ -42,7 +47,6 @@ export default function Home() {
   }
 
   useEffect(() => {
-    console.log('aa')
     load()
   }, [])
 
@@ -57,16 +61,8 @@ export default function Home() {
           {isLoading ? <Skeleton className='w-full h-80 rounded-xl' /> : <video ref={videoRef} controls className='w-full' />}
         </section>
         <aside className='flex-auto w-1/3'>
-          {/* <p className="text-center">
-            <button
-              onClick={transcode}
-              className="bg-green-500 hover:bg-green-700 text-white py-3 px-6 rounded"
-            >
-              Transcode avi to mp4
-            </button>
-          </p> */}
           <p ref={messageRef} />
-          <CardWithForm transcode={transcode} ffmpegMessage={messageRef} />
+          <CardWithForm transcode={transcode} ffmpegMessage={messageRef} videoRef={videoRef} />
         </aside>
 
       </div>
@@ -80,7 +76,7 @@ function LoadingPidePiper() {
     <p
       // className="fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] flex items-center text-white py-2 px-4 rounded"
       className="text-white py-2 px-4 flex items-center">
-      Loading ffmpeg... (our Pide Piper 🪈💚)
+      Loading ffmpeg... (our Pide Piper 🪈💚 31MB)
       <span className="animate-spin ml-3">
         <svg
           viewBox="0 0 1024 1024"
