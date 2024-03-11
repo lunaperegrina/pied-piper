@@ -23,8 +23,8 @@ export default function Home() {
 
     ffmpeg.on('progress', ({ progress, time }) => {
       if (messageRef.current) messageRef.current.innerHTML = `Progress: ${progress} Time: ${time}`
-  });
-  
+    });
+
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
@@ -33,13 +33,42 @@ export default function Home() {
     setIsLoading(false)
   }
 
-  async function transcode(file: Blob, outputFormat: string) {
+  async function transcode(
+    file: Blob,
+    outputFormat: string,
+    typeOperaton: 'compress' | 'convert',
+    quality?: 'low' | 'medium' | 'high') {
     const ffmpeg = ffmpegRef.current
     console.log('transcoding')
     console.log(outputFormat)
+    console.log(typeOperaton)
+    console.log(quality)
     await ffmpeg.writeFile(`input.${file.type.split('/')[1]}`, await fetchFile(file))
     console.log('file written')
-    await ffmpeg.exec(['-i', `input.${file.type.split('/')[1]}`, `output.${outputFormat}`])
+
+    if (typeOperaton === 'convert') {
+      console.log('convert')
+      await ffmpeg.exec(['-i', `input.${file.type.split('/')[1]}`, `output.${outputFormat}`])
+    } else if (typeOperaton === 'compress') {
+      console.log('compress')
+      switch (quality) {
+        case "high":
+          console.log('high')
+          await ffmpeg.exec(['-i', `input.${file.type.split('/')[1]}`, '-vcodec', 'h264', '-acodec', 'mp2', 'output.mp4'])
+          break;
+        case "medium":
+          console.log('medium')
+          await ffmpeg.exec(['-i', `input.${file.type.split('/')[1]}`, "-s 1280x720 -acodec copy -y", 'output.mp4'])
+          break;
+        case "low":
+          console.log('low')
+          await ffmpeg.exec(['-i', `input.${file.type.split('/')[1]}`, "-vcodec h264 -b:v 1000k -acodec mp3", 'output.mp4'])
+          break;
+        default:
+          break;
+      }
+    }
+  
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     const data = (await ffmpeg.readFile('output.mp4')) as any
     if (videoRef.current)
@@ -58,10 +87,9 @@ export default function Home() {
       <div className="w-full flex flex-row items-center justify-center h-screen m-8 gap-4">
         <section className='flex-auto w-2/3'>
           {/* biome-ignore lint/a11y/useMediaCaption: <explanation> */}
-          {isLoading ? <Skeleton className='w-full h-80 rounded-xl' /> : <video ref={videoRef} controls className='w-full' />}
+          {isLoading ? <Skeleton className='w-full h-80 rounded-xl' /> : <video ref={videoRef} controls className='w-2/3 h-96 mx-auto' />}
         </section>
         <aside className='flex-auto w-1/3'>
-          <p ref={messageRef} />
           <CardWithForm transcode={transcode} ffmpegMessage={messageRef} videoRef={videoRef} />
         </aside>
 

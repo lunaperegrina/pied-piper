@@ -32,14 +32,15 @@ import { filesize } from "filesize";
 
 import { Separator } from "@/components/ui/separator"
 
-import Image from "next/image"
-
-import { type ChangeEvent, useState, useEffect } from 'react';
+import { type ChangeEvent, useState, useEffect, use } from 'react';
 
 
 export function CardWithForm({ transcode, ffmpegMessage, videoRef }: {
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  transcode: (file: any, outputFormat: string) => Promise<void>
+  transcode: (file: any,
+    outputFormat: string,
+    typeOperaton: 'compress' | 'convert',
+    videoQuality?: 'low' | 'medium' | 'high') => Promise<void>
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   ffmpegMessage: any
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
@@ -49,6 +50,8 @@ export function CardWithForm({ transcode, ffmpegMessage, videoRef }: {
   const [file, setFile] = useState<File>();
   const [isCompatible, setIsCompatible] = useState<boolean>(false);
   const [outputFormat, setOutputFormat] = useState<string>();
+  const [videoSrc, setVideoSrc] = useState<string>("");
+  const [videoQuality, setVideoQuality] = useState<'low' | 'medium' | 'high'>();
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     if (e.target.files) {
@@ -59,8 +62,12 @@ export function CardWithForm({ transcode, ffmpegMessage, videoRef }: {
     }
   };
 
-  function handleUploadClick() {
-    transcode(file, outputFormat as string);
+  function handleUploadClick(
+    typeOperaton: 'compress' | 'convert',
+    videoQuality?: 'low' | 'medium' | 'high'
+  ) {
+    transcode(file, outputFormat as string, typeOperaton, videoQuality);
+    setVideoSrc("")
   }
 
   function handleDownloadClick() {
@@ -74,6 +81,11 @@ export function CardWithForm({ transcode, ffmpegMessage, videoRef }: {
   }
 
   useEffect(() => {
+    console.log(videoRef.current.src)
+    setVideoSrc(videoRef.current.src)
+  }, [videoRef])
+
+  useEffect(() => {
     console.log(file?.size)
     console.log(file?.type)
     console.log(file?.name.split('.').pop() as string)
@@ -83,64 +95,120 @@ export function CardWithForm({ transcode, ffmpegMessage, videoRef }: {
   }, [file])
 
   return (
-    <Tabs defaultValue="convert" className="w-[350px] m-4 rounded-2xl">
+    <Tabs defaultValue="convert" className="w-2/3 m-4 rounded-2xl">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="convert">Convert</TabsTrigger>
         <TabsTrigger value="compress">Compress</TabsTrigger>
       </TabsList>
       <TabsContent value="convert">
-        <Card className="w-[350px]">
+        <Card className="w-full">
           <CardHeader>
             <CardTitle>Convert</CardTitle>
             {/* <CardDescription>Deploy your new project in one-click.</CardDescription> */}
           </CardHeader>
           <CardContent>
-            <form>
-              <div className="grid w-full items-center gap-4">
-                <div className="flex flex-col space-y-1.5">
-                  <Label htmlFor="file-to-compress">Input File</Label>
-                  <Input onChange={handleFileChange} id="file-to-compress" type="file" />
-                </div>
-                <div className="flex flex-col space-y-1.5">
-
-                  {file && (
-                    <>
-                      <Label className="text-zinc-400" >File size: {filesize(file?.size as number, { standard: "jedec" })}</Label>
-                      <Label className="text-zinc-400">File type: {file?.type}</Label>
-                    </>
-                  )}
-
-                </div>
-                <div className="flex flex-col space-y-1.5">
-                  <Label htmlFor="framework">Output Format</Label>
-                  <Select
-                    onValueChange={(value) => { setOutputFormat(value) }}
-                    disabled={!isCompatible}>
-                    <SelectTrigger id="output-format">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent position="popper">
-                      {
-                        isCompatible && compatibleFormats[file?.name.split('.').pop() as string].map((format) => (
-                          <SelectItem value={format}>{format}</SelectItem>
-                        ))
-                      }
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="grid w-full items-center gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="file-to-compress">Input File</Label>
+                <Input onChange={handleFileChange} id="file-to-compress" type="file" />
               </div>
-            </form>
+              <div className="flex flex-col space-y-1.5">
+
+                {file && (
+                  <>
+                    <Label className="text-zinc-400" >File size: {filesize(file?.size as number, { standard: "jedec" })}</Label>
+                    <Label className="text-zinc-400">File type: {file?.type}</Label>
+                  </>
+                )}
+
+              </div>
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="framework">Output Format</Label>
+                <Select
+                  onValueChange={(value) => { setOutputFormat(value) }}
+                  disabled={!isCompatible}>
+                  <SelectTrigger id="output-format">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    {
+                      isCompatible && compatibleFormats[file?.name.split('.').pop() as string].map((format) => (
+                        <SelectItem value={format}>{format}</SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Separator orientation="horizontal" />
+            <p ref={ffmpegMessage} className="text-zinc-400 my-3" />
           </CardContent>
           <CardFooter className="flex justify-between">
             <Button variant="outline">Cancel</Button>
             <Separator orientation="vertical" />
-
-              <Button onClick={handleDownloadClick} disabled={file && outputFormat ? false : true}>
-                <Image src="/icons/download.png" alt="Download" width={20} height={20} />
-              </Button>
-
-            <Button onClick={handleUploadClick} disabled={file && outputFormat ? false : true}>
+            <Button onClick={() => handleUploadClick('convert')} disabled={file && outputFormat ? false : true}>
               Convert
+            </Button>
+          </CardFooter>
+          <CardFooter className="flex justify-between">
+            <Button onClick={handleDownloadClick} className="w-full" disabled={file && outputFormat && videoSrc === "" ? false : true}>
+              {/* <Image src="/icons/download.png" alt="Download" width={20} height={20} /> */}
+              Download
+            </Button>
+          </CardFooter>
+        </Card>
+      </TabsContent>
+      <TabsContent value="compress">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Compress</CardTitle>
+            {/* <CardDescription>Deploy your new project in one-click.</CardDescription> */}
+          </CardHeader>
+          <CardContent>
+            <div className="grid w-full items-center gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="file-to-compress">Input File (only mp4)</Label>
+                <Input onChange={handleFileChange} id="file-to-compress" type="file" />
+              </div>
+              <div className="flex flex-col space-y-1.5">
+
+                {file && (
+                  <>
+                    <Label className="text-zinc-400" >File size: {filesize(file?.size as number, { standard: "jedec" })}</Label>
+                    <Label className="text-zinc-400">File type: {file?.type}</Label>
+                  </>
+                )}
+
+              </div>
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="framework">Output Format</Label>
+                <Select
+                  onValueChange={(value) => { setVideoQuality(value as 'low' | 'medium' | 'high') }}>
+                  <SelectTrigger id="output-format">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    <SelectItem value={'high'}>Good</SelectItem>
+                    <SelectItem value={'medium'}>Medium</SelectItem>
+                    <SelectItem value={'low'}>Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Separator orientation="horizontal" />
+            <p ref={ffmpegMessage} className="text-zinc-400 my-3" />
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            <Button variant="outline">Cancel</Button>
+            <Separator orientation="vertical" />
+            <Button onClick={() => handleUploadClick('compress', videoQuality)} disabled={file ? false : true}>
+              Compress
+            </Button>
+          </CardFooter>
+          <CardFooter className="flex justify-between">
+            <Button onClick={handleDownloadClick} className="w-full" disabled={file && videoSrc === "" ? false : true}>
+              {/* <Image src="/icons/download.png" alt="Download" width={20} height={20} /> */}
+              Download
             </Button>
           </CardFooter>
         </Card>
